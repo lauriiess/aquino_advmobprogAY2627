@@ -25,16 +25,18 @@ class _CartScreenState extends State<CartScreen> {
   List<int> _quantities = [];
   Cart? _cart;
 
-  static const Color _pinkButton = Color.fromARGB(240, 209, 81, 145); 
+  static const Color _pinkButton = Color.fromARGB(240, 209, 81, 145);
   static const Color _pinkSubtle = Color(0x1EFF69B4);
-  static const Color _violet12 = Color(0x1E8A2BE2); 
+  static const Color _violet12 = Color(0x1E8A2BE2);
 
   @override
   void initState() {
     super.initState();
-    // Enhancement 3: only fetch the cart for this specific user (not every
-    // cart in the system) using the /carts/user/{id} endpoint
+
+    // Enhancement 3: only fetch the cart for this specific user
+    // using the /carts/user/{id} endpoint
     _userCartFuture = _cartService.getCartByUserId(widget.userId);
+
     _userCartFuture.then((cart) {
       if (cart != null) {
         setState(() {
@@ -47,27 +49,35 @@ class _CartScreenState extends State<CartScreen> {
 
   double get _subtotal {
     if (_cart == null) return 0;
+
     double sum = 0;
+
     for (int i = 0; i < _cart!.products.length; i++) {
       final product = _cart!.products[i];
+
       final discountedPrice =
           product.price * (1 - product.discountPercentage / 100);
+
       sum += discountedPrice * _quantities[i];
     }
+
     return sum;
   }
 
   void _increaseQuantity(int index) async {
     setState(() => _quantities[index]++);
 
-    // Enhancement 3: also try out the add-to-cart endpoint by sending the
-    // product id + new quantity, just so we're actually using it somewhere
+    // Enhancement 3: also try out the add-to-cart endpoint
     final product = _cart!.products[index];
+
     try {
       await _cartService.addToCart(
         userId: widget.userId,
         products: [
-          {'id': product.id, 'quantity': _quantities[index]},
+          {
+            'id': product.id,
+            'quantity': _quantities[index],
+          },
         ],
       );
     } catch (_) {
@@ -83,24 +93,46 @@ class _CartScreenState extends State<CartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Get the current theme so the CartScreen follows light/dark mode.
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return FutureBuilder<Cart?>(
       future: _userCartFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
         }
 
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
+          return Center(
+            child: Text(
+              'Error: ${snapshot.error}',
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
+              ),
+            ),
+          );
         }
 
         final cart = snapshot.data;
+
         if (cart == null || cart.products.isEmpty) {
-          return const Center(child: Text('Your cart is empty'));
+          return Center(
+            child: Text(
+              'Your cart is empty',
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
+              ),
+            ),
+          );
         }
 
         return Container(
-          color: const Color(0xFFF2F5F7),
+          // Changed from hardcoded light background
+          color: theme.scaffoldBackgroundColor,
           child: Column(
             children: [
               Expanded(
@@ -109,20 +141,25 @@ class _CartScreenState extends State<CartScreen> {
                   itemCount: cart.products.length,
                   itemBuilder: (context, index) {
                     final product = cart.products[index];
+
                     final qty = _quantities.isNotEmpty
                         ? _quantities[index]
                         : product.quantity;
-                    final lineTotal =
-                        product.price * (1 - product.discountPercentage / 100) * qty;
 
-                    // Enhancement 1: tapping the card (but not the +/- buttons)
-                    // takes you to the detail screen for that product
+                    final lineTotal =
+                        product.price *
+                            (1 - product.discountPercentage / 100) *
+                            qty;
+
+                    // Enhancement 1: tapping the card takes you to
+                    // the detail screen for that product
                     return GestureDetector(
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => DetailScreen(product: product),
+                            builder: (context) =>
+                                DetailScreen(product: product),
                           ),
                         );
                       },
@@ -130,9 +167,12 @@ class _CartScreenState extends State<CartScreen> {
                         margin: EdgeInsets.only(bottom: 10.h),
                         padding: EdgeInsets.all(10.w),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          // Changed from Colors.white
+                          color: theme.cardColor,
                           borderRadius: BorderRadius.circular(10.r),
-                          border: Border.all(color: _violet12),
+                          border: Border.all(
+                            color: _violet12,
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -140,35 +180,49 @@ class _CartScreenState extends State<CartScreen> {
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // circular thumbnail instead of a square one
+                                // Circular thumbnail
                                 ClipOval(
                                   child: Image.network(
                                     product.thumbnail,
                                     width: 48.w,
                                     height: 48.w,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) =>
-                                        const Icon(Icons.broken_image),
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            const Icon(
+                                      Icons.broken_image,
+                                    ),
                                   ),
                                 ),
+
                                 SizedBox(width: 10.w),
+
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       CustomText(
                                         text: product.title,
                                         fontSize: 14.sp,
                                         fontWeight: FontWeight.w600,
                                       ),
+
                                       SizedBox(height: 2.h),
+
                                       Text(
                                         '${product.discountPercentage.toStringAsFixed(0)}% off • \$${lineTotal.toStringAsFixed(2)} total',
-                                        style: TextStyle(fontSize: 11.sp, color: Colors.grey.shade600),
+                                        style: TextStyle(
+                                          fontSize: 11.sp,
+                                          color: isDark
+                                              ? Colors.white70
+                                              : Colors.grey.shade600,
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
+
                                 Text(
                                   '\$${product.price.toStringAsFixed(2)}',
                                   style: TextStyle(
@@ -179,23 +233,36 @@ class _CartScreenState extends State<CartScreen> {
                                 ),
                               ],
                             ),
+
                             SizedBox(height: 8.h),
-                            // horizontal stepper along the bottom of the card
-                            // instead of a vertical one on the side
+
+                            // Horizontal stepper
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
                                 _stepperButton(
+                                  context: context,
                                   icon: Icons.remove,
-                                  onTap: () => _decreaseQuantity(index),
+                                  onTap: () =>
+                                      _decreaseQuantity(index),
                                   filled: false,
                                 ),
+
                                 SizedBox(width: 14.w),
-                                CustomText(text: '$qty', fontSize: 13.sp, fontWeight: FontWeight.w600),
+
+                                CustomText(
+                                  text: '$qty',
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w600,
+                                ),
+
                                 SizedBox(width: 14.w),
+
                                 _stepperButton(
+                                  context: context,
                                   icon: Icons.add,
-                                  onTap: () => _increaseQuantity(index),
+                                  onTap: () =>
+                                      _increaseQuantity(index),
                                   filled: true,
                                 ),
                               ],
@@ -207,35 +274,80 @@ class _CartScreenState extends State<CartScreen> {
                   },
                 ),
               ),
+
+              // Bottom order summary
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+                padding: EdgeInsets.symmetric(
+                  horizontal: 16.w,
+                  vertical: 14.h,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  // Changed from Colors.white
+                  color: theme.cardColor,
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, -2)),
+                    BoxShadow(
+                      color: Colors.black.withOpacity(
+                        isDark ? 0.3 : 0.06,
+                      ),
+                      blurRadius: 8,
+                      offset: const Offset(0, -2),
+                    ),
                   ],
                 ),
                 child: Column(
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment:
+                          MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Subtotal', style: TextStyle(fontSize: 12.sp, color: Colors.grey.shade600)),
+                        Text(
+                          'Subtotal',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: isDark
+                                ? Colors.white70
+                                : Colors.grey.shade600,
+                          ),
+                        ),
+
                         Text(
                           '\$${_subtotal.toStringAsFixed(2)}',
-                          style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ],
                     ),
+
                     SizedBox(height: 3.h),
+
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment:
+                          MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Delivery Fee', style: TextStyle(fontSize: 12.sp, color: Colors.grey.shade600)),
-                        Text('Free', style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w700)),
+                        Text(
+                          'Delivery Fee',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: isDark
+                                ? Colors.white70
+                                : Colors.grey.shade600,
+                          ),
+                        ),
+
+                        Text(
+                          'Free',
+                          style: TextStyle(
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ],
                     ),
+
                     SizedBox(height: 12.h),
+
                     SizedBox(
                       width: double.infinity,
                       height: 44.h,
@@ -243,18 +355,25 @@ class _CartScreenState extends State<CartScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _pinkButton,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10.r), // squarer, not a full pill
+                            borderRadius:
+                                BorderRadius.circular(10.r),
                           ),
                           elevation: 0,
                         ),
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Order confirmed!')),
+                            const SnackBar(
+                              content: Text('Order confirmed!'),
+                            ),
                           );
                         },
                         child: Text(
                           'Confirm Order',
-                          style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
@@ -268,7 +387,15 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _stepperButton({required IconData icon, required VoidCallback onTap, required bool filled}) {
+  Widget _stepperButton({
+    required BuildContext context,
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool filled,
+  }) {
+    final isDark =
+        Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -278,7 +405,15 @@ class _CartScreenState extends State<CartScreen> {
           color: filled ? _pinkButton : _pinkSubtle,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: 16, color: filled ? Colors.white : Colors.black54),
+        child: Icon(
+          icon,
+          size: 16,
+          color: filled
+              ? Colors.white
+              : isDark
+                  ? Colors.white70
+                  : Colors.black54,
+        ),
       ),
     );
   }

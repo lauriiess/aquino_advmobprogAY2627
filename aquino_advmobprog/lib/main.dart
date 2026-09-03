@@ -8,6 +8,8 @@ import 'package:provider/provider.dart';
 // screens
 import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/splash_screen.dart';
+import 'screens/signin_screen.dart';
 
 // providers
 import 'providers/theme_provider.dart';
@@ -43,8 +45,13 @@ class AquinoAdvMobProg extends StatelessWidget {
             darkTheme: themeModel.darkTheme,
             themeMode: themeModel.isDark ? ThemeMode.dark : ThemeMode.light,
             title: 'E-Commerce App',
-            initialRoute: '/home',
+            // Enhancement 1: app now boots into the splash screen, which
+            // checks persistent authentication before deciding whether to
+            // go to /home or /signin.
+            initialRoute: '/splash',
             routes: {
+              '/splash': (context) => const SplashScreen(),
+              '/signin': (context) => const SignInScreen(),
               '/home': (context) => const HomeScreen(),
               '/settings': (context) => const SettingsScreen(),
             },

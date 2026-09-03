@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'product_screen.dart';
 import 'cart_screen.dart';
+import 'profile_screen.dart';
 
 import '../widgets/custom_text.dart';
 
@@ -20,6 +21,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Enhancement 3: pull the signed-in user's id out of the route
+    // arguments (passed by SplashScreen/SignInScreen from the saved/
+    // logged-in user data) so CartScreen renders that user's cart
+    // instead of a hardcoded id.
+    final args = ModalRoute.of(context)?.settings.arguments;
+    final userData = args is Map ? Map<String, dynamic>.from(args) : <String, dynamic>{};
+    final userId = userData['id'] is int ? userData['id'] as int : 5;
+
     return PopScope(
       canPop: false,
       child: Scaffold(
@@ -52,10 +61,10 @@ class _HomeScreenState extends State<HomeScreen> {
         body: PageView(
           physics: const NeverScrollableScrollPhysics(),
           controller: _pageController,
-          children: const <Widget>[
-            ProductScreen(),
-            CartScreen(),
-            Center(child: Text('Profile')),
+          children: <Widget>[
+            const ProductScreen(),
+            CartScreen(userId: userId),
+            const ProfileScreen(),
           ],
           onPageChanged: (page) {
             setState(() {

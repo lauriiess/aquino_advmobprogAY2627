@@ -42,17 +42,32 @@ class _ProductScreenState extends State<ProductScreen> {
   Future<void> _fetchProducts() async {
     try {
       final products = await ProductService().getAllProducts();
+      // Bug fix: guard against setState after this screen is disposed
+      // (same class of bug as the Cart screen's "reset by peer" issue --
+      // the request can still be in flight when the user navigates away).
+      if (!mounted) return;
       setState(() {
         _allProducts = products;
         _filteredProducts = products;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;
       });
     }
+  }
+
+  // Retries the fetch after a transient network error (dummyjson
+  // occasionally resets the connection on the very first request).
+  void _retryFetch() {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    _fetchProducts();
   }
 
   void _filterProducts(String query) {
@@ -124,9 +139,22 @@ class _ProductScreenState extends State<ProductScreen> {
               )
             else if (_errorMessage != null)
               Center(
-                child: CustomText(
-                  text: 'Error: $_errorMessage',
-                  fontSize: 14.sp,
+                child: Padding(
+                  padding: EdgeInsets.all(24.r),
+                  child: Column(
+                    children: [
+                      CustomText(
+                        text: 'Error: $_errorMessage',
+                        fontSize: 14.sp,
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 12.h),
+                      ElevatedButton(
+                        onPressed: _retryFetch,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
                 ),
               )
             else if (_filteredProducts.isEmpty)

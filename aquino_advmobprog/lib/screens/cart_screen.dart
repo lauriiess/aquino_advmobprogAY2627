@@ -32,18 +32,30 @@ class _CartScreenState extends State<CartScreen> {
   @override
   void initState() {
     super.initState();
+    _loadCart();
+  }
 
-    // Enhancement 3: only fetch the cart for this specific user
-    // using the /carts/user/{id} endpoint
+  // Enhancement 3: fetch the cart for this specific user using the
+  // /carts/user/{id} endpoint. Split out so the Retry button can call it
+  // again after a transient network error.
+  void _loadCart() {
     _userCartFuture = _cartService.getCartByUserId(widget.userId);
 
     _userCartFuture.then((cart) {
+      // Bug fix: this future can resolve after the widget has already
+      // been disposed (e.g. navigating away while the request is still
+      // in flight), so guard with `mounted` before calling setState.
+      if (!mounted) return;
       if (cart != null) {
         setState(() {
           _cart = cart;
           _quantities = cart.products.map((p) => p.quantity).toList();
         });
       }
+    }).catchError((_) {
+      // FutureBuilder below already surfaces this error to the UI --
+      // swallow it here so it doesn't also print as an unhandled
+      // Future exception in the console.
     });
   }
 
@@ -107,12 +119,32 @@ class _CartScreenState extends State<CartScreen> {
         }
 
         if (snapshot.hasError) {
+          // Bug fix: dummyjson occasionally resets the connection on the
+          // first request. A Retry button lets the user recover without
+          // reloading the whole app.
           return Center(
-            child: Text(
-              'Error: ${snapshot.error}',
-              style: TextStyle(
-                color: theme.textTheme.bodyLarge?.color,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Error: ${snapshot.error}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                  ),
+                ),
+                SizedBox(height: 12.h),
+                ElevatedButton(
+                  onPressed: () => setState(_loadCart),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _pinkButton,
+                  ),
+                  child: const Text(
+                    'Retry',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
             ),
           );
         }

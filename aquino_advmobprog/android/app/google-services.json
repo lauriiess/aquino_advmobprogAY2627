@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "495980511492",
+    "project_id": "advmobprog-firebase-70589",
+    "storage_bucket": "advmobprog-firebase-70589.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:495980511492:android:4e51355f7b664ba1471051",
+        "android_client_info": {
+          "package_name": "com.example.aquino_advmobprog"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAUqCuLibEQYGw7zVG0sw_CQlX74TG0lAU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

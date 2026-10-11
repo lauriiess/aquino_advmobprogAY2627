@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../models/cart.dart';
 import '../services/cart_service.dart';
+import '../services/user_service.dart';
 import '../widgets/custom_text.dart';
 import 'detail_screen.dart';
 
@@ -127,7 +128,7 @@ class _CartScreenState extends State<CartScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Error: ${snapshot.error}',
+                  friendlyError(snapshot.error!),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: theme.textTheme.bodyLarge?.color,

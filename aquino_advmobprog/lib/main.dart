@@ -10,9 +10,13 @@ import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/signin_screen.dart';
+import 'screens/signup_screen.dart';
 
 // providers
 import 'providers/theme_provider.dart';
+
+import 'firebase_options.dart'; 
+import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +26,11 @@ void main() async {
       _,
     ) async {
       await dotenv.load(fileName: 'assets/.env');
+
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+
       runApp(const AquinoAdvMobProg());
     });
 }
@@ -52,6 +61,7 @@ class AquinoAdvMobProg extends StatelessWidget {
             routes: {
               '/splash': (context) => const SplashScreen(),
               '/signin': (context) => const SignInScreen(),
+              '/signup': (context) => const SignupScreen(),
               '/home': (context) => const HomeScreen(),
               '/settings': (context) => const SettingsScreen(),
             },

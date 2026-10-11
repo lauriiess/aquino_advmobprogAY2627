@@ -30,6 +30,14 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     if (loggedIn) {
+      // Firebase tokens expire, so get a fresh one when the app starts
+      if (await _userService.getLoginType() == LoginType.firebase) {
+        try {
+          await _userService.refreshFirebaseToken();
+        } catch (_) {
+          // offline or expired, keep going with the saved session
+        }
+      }
       final userData = await _userService.getUserData();
       if (!mounted) return;
       Navigator.pushReplacementNamed(

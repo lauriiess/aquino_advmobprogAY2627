@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-
 import '../services/user_service.dart';
 import '../widgets/custom_text.dart';
 
-// Enhancement 2: custom sign in UI wired to UserService's login
+// Enhancement 2: sign in screen with DummyJSON and Firebase options
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
 
@@ -18,6 +17,9 @@ class _SignInScreenState extends State<SignInScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  LoginType _loginType = LoginType.dummyJson;
+
+  bool get _isFirebase => _loginType == LoginType.firebase;
 
   static const Color _violet = Color(0xCC8A2BE2);
 
@@ -28,43 +30,43 @@ class _SignInScreenState extends State<SignInScreen> {
     super.dispose();
   }
 
-  void _login() async {
-    UserService userService = UserService();
-    setState(() {
-      _isLoading = true;
-    });
+  // logs in using DummyJSON or Firebase, depending on the toggle
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    if (_formKey.currentState!.validate()) {
-      try {
-        final response = await userService.loginUser(
-          _usernameController.text,
+    final userService = UserService();
+    setState(() => _isLoading = true);
+
+    try {
+      if (_isFirebase) {
+        await userService.signIn(
+          email: _usernameController.text.trim(),
+          password: _passwordController.text,
+        );
+      } else {
+        await userService.loginUser(
+          _usernameController.text.trim(),
           _passwordController.text,
         );
-
-        // Save user data to SharedPreferences
-        await userService.saveUserData(response);
-
-        if (!mounted) return;
-        setState(() {
-          _isLoading = false;
-        });
-
-        Navigator.pushReplacementNamed(context, '/home', arguments: response);
-      } catch (e) {
-        if (!mounted) return;
-        setState(() {
-          _isLoading = false;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login failed: ${e.toString()}')),
-        );
       }
-    } else {
-      setState(() {
-        _isLoading = false;
-      });
+
+      // both paths leave the session in SharedPreferences, so read it back
+      // both logins save to SharedPreferences, so read it back here
+      final userData = await userService.getUserData();
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/home', arguments: userData);
+    } catch (e) {
+      _showMessage(friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
@@ -73,7 +75,9 @@ class _SignInScreenState extends State<SignInScreen> {
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 28.w),
-          child: Form(
+          child: Center(
+            child: SingleChildScrollView(
+              child: Form(
             key: _formKey,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -95,18 +99,52 @@ class _SignInScreenState extends State<SignInScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 32.h),
+                SizedBox(height: 24.h),
+                // switch between DummyJSON and Firebase login
+                SegmentedButton<LoginType>(
+                  segments: const [
+                    ButtonSegment(
+                      value: LoginType.dummyJson,
+                      icon: Icon(Icons.api),
+                      label: Text('DummyJSON'),
+                    ),
+                    ButtonSegment(
+                      value: LoginType.firebase,
+                      icon: Icon(Icons.local_fire_department),
+                      label: Text('Firebase'),
+                    ),
+                  ],
+                  selected: {_loginType},
+                  onSelectionChanged: (selection) {
+                    setState(() => _loginType = selection.first);
+                    _formKey.currentState?.reset();
+                  },
+                ),
+                SizedBox(height: 20.h),
                 TextFormField(
                   controller: _usernameController,
+                  keyboardType: _isFirebase
+                      ? TextInputType.emailAddress
+                      : TextInputType.text,
                   decoration: InputDecoration(
-                    labelText: 'Username',
+                    labelText: _isFirebase ? 'Email' : 'Username',
+                    prefixIcon: Icon(_isFirebase ? Icons.email : Icons.person),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10.r),
                     ),
                   ),
-                  validator: (value) => (value == null || value.isEmpty)
-                      ? 'Username is required'
-                      : null,
+                  validator: (value) {
+                    final text = value?.trim() ?? '';
+                    if (text.isEmpty) {
+                      return _isFirebase
+                          ? 'Email is required'
+                          : 'Username is required';
+                    }
+                    if (_isFirebase && !text.contains('@')) {
+                      return 'Enter a valid email';
+                    }
+                    return null;
+                  },
                 ),
                 SizedBox(height: 16.h),
                 TextFormField(
@@ -161,7 +199,21 @@ class _SignInScreenState extends State<SignInScreen> {
                           ),
                   ),
                 ),
+                SizedBox(height: 12.h),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // link to the sign up screen
+                    const Text("Don't have an account?"),
+                    TextButton(
+                      onPressed: () => Navigator.pushNamed(context, '/signup'),
+                      child: const Text('Sign Up'),
+                    ),
+                  ],
+                ),
               ],
+            ),
+          ),
             ),
           ),
         ),

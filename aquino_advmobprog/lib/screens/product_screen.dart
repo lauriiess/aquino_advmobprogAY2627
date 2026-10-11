@@ -11,10 +11,12 @@ import '../services/product_service.dart';
 import 'product_detail_screen.dart';
 
 // widgets
+import '../services/user_service.dart';
 import '../widgets/custom_text.dart';
 
 class ProductScreen extends StatefulWidget {
-  const ProductScreen({super.key});
+  final int userId;
+  const ProductScreen({super.key, this.userId = 5});
 
   @override
   State<ProductScreen> createState() => _ProductScreenState();
@@ -54,7 +56,7 @@ class _ProductScreenState extends State<ProductScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = friendlyError(e);
         _isLoading = false;
       });
     }
@@ -144,7 +146,7 @@ class _ProductScreenState extends State<ProductScreen> {
                   child: Column(
                     children: [
                       CustomText(
-                        text: 'Error: $_errorMessage',
+                        text: _errorMessage!,
                         fontSize: 14.sp,
                         textAlign: TextAlign.center,
                       ),
@@ -187,7 +189,10 @@ class _ProductScreenState extends State<ProductScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => ProductDetailScreen(product: product),
+                          builder: (context) => ProductDetailScreen(
+                            product: product,
+                            userId: widget.userId,
+                          ),
                         ),
                       );
                     },

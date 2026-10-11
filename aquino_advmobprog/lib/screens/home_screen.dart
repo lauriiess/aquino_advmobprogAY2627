@@ -27,7 +27,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // instead of a hardcoded id.
     final args = ModalRoute.of(context)?.settings.arguments;
     final userData = args is Map ? Map<String, dynamic>.from(args) : <String, dynamic>{};
-    final userId = userData['id'] is int ? userData['id'] as int : 5;
+    // Firebase accounts have no DummyJSON id (saved as 0), so fall back to
+    // the default demo user's cart
+    final savedId = userData['id'];
+    final userId = (savedId is int && savedId > 0) ? savedId : 5;
 
     return PopScope(
       canPop: false,
@@ -62,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
           physics: const NeverScrollableScrollPhysics(),
           controller: _pageController,
           children: <Widget>[
-            const ProductScreen(),
+            ProductScreen(userId: userId),
             CartScreen(userId: userId),
             const ProfileScreen(),
           ],

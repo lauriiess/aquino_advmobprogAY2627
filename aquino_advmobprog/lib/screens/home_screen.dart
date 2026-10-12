@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'product_screen.dart';
 import 'cart_screen.dart';
 import 'profile_screen.dart';
+import 'chat_screen.dart';
 
 import '../widgets/custom_text.dart';
 
@@ -16,15 +17,21 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // pages: 0 shop, 1 cart, 2 profile, 3 chat (chat has no footer icon)
+  static const int _chatPage = 3;
   int _selectedIndex = 0;
   final PageController _pageController = PageController();
 
   @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Enhancement 3: pull the signed-in user's id out of the route
-    // arguments (passed by SplashScreen/SignInScreen from the saved/
-    // logged-in user data) so CartScreen renders that user's cart
-    // instead of a hardcoded id.
+    // pull the signed-in user's id out of the route arguments (passed by
+    // SplashScreen/SignInScreen) so CartScreen renders that user's cart
     final args = ModalRoute.of(context)?.settings.arguments;
     final userData = args is Map ? Map<String, dynamic>.from(args) : <String, dynamic>{};
     // Firebase accounts have no DummyJSON id (saved as 0), so fall back to
@@ -32,25 +39,28 @@ class _HomeScreenState extends State<HomeScreen> {
     final savedId = userData['id'];
     final userId = (savedId is int && savedId > 0) ? savedId : 5;
 
+    final onChat = _selectedIndex == _chatPage;
+
     return PopScope(
       canPop: false,
+      // back button on the chat list goes back to the shop
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && onChat) _onTappedBar(0);
+      },
       child: Scaffold(
-        // background is violet now (kept at 80% opacity, not solid) -- this
-        // is also the only title bar the app shows, CartScreen used to have
-        // its own AppBar too, which stacked two bars on top of each other
         appBar: AppBar(
           automaticallyImplyLeading: false,
           elevation: 2,
           backgroundColor: const Color(0xCC8A2BE2), // violet, 80% opacity
           foregroundColor: Colors.white,
           title: (_selectedIndex == 0)
-              ? Image.asset('assets/images/nubdexchange_logo.png' , scale: 11.sp,)
+              ? Image.asset('assets/images/nubdexchange_logo.png', scale: 11.sp)
               : CustomText(
                   text: (_selectedIndex == 1)
                       ? 'Cart'
                       : (_selectedIndex == 2)
                           ? 'Profile'
-                          : 'Home',
+                          : 'Messages',
                   fontSize: 20.sp,
                   fontWeight: FontWeight.w600,
                 ),
@@ -68,6 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ProductScreen(userId: userId),
             CartScreen(userId: userId),
             const ProfileScreen(),
+            const ChatScreen(),
           ],
           onPageChanged: (page) {
             setState(() {
@@ -78,7 +89,8 @@ class _HomeScreenState extends State<HomeScreen> {
         bottomNavigationBar: BottomNavigationBar(
           showSelectedLabels: false, //selected item
           showUnselectedLabels: false, //unselected item
-          selectedItemColor: const Color(0xCC8A2BE2), // violet, 80% opacity
+          // no footer icon is selected while on the chat list
+          selectedItemColor: onChat ? Colors.grey : const Color(0xCC8A2BE2),
           unselectedItemColor: Colors.grey,
           onTap: _onTappedBar,
           items: const [
@@ -86,22 +98,14 @@ class _HomeScreenState extends State<HomeScreen> {
             BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Cart'),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
           ],
-          currentIndex: _selectedIndex,
+          currentIndex: onChat ? 0 : _selectedIndex,
         ),
-        // Enhancement 2: turned the chat button into a floating action
-        // button instead of a bottom nav item, and it just disappears
-        // while on the Cart tab (index 1) 
-        floatingActionButton: (_selectedIndex == 1)
+        // floating chat button opens the chat list, hidden on cart and chat
+        floatingActionButton: (_selectedIndex == 1 || onChat)
             ? null
             : FloatingActionButton(
                 backgroundColor: const Color(0xCCFF69B4), // pink, 80% opacity
-                onPressed: () {
-                  // no chat screen built yet in this project, so just
-                  // showing a snackbar for now instead of navigating
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Chat screen not implemented yet')),
-                  );
-                },
+                onPressed: () => _onTappedBar(_chatPage),
                 child: const Icon(Icons.chat, color: Colors.white),
               ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,

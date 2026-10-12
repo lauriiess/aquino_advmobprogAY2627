@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
-// prefixed so it doesn't clash with our own User model
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import '../constants.dart';
 import '../models/user.dart';
+
 
 ValueNotifier<UserService> userService = ValueNotifier(UserService());
 
@@ -226,6 +227,20 @@ class UserService {
     await prefs.setString('token', token);
     await prefs.setString('accessToken', token);
     await saveLoginType(LoginType.firebase);
+    await _saveUserToFirestore(user, prefs);
+  }
+
+    /// saves the Firebase user to the Firestore "Users" collection (used by chat)
+  Future<void> _saveUserToFirestore(fb.User user, SharedPreferences prefs) async {
+    final firstName = prefs.getString('firstName') ?? '';
+    final username = prefs.getString('username') ?? '';
+    await FirebaseFirestore.instance.collection('Users').doc(user.uid).set({
+      'uid': user.uid,
+      'email': user.email ?? '',
+      'username': username,
+      'firstName': firstName.isNotEmpty ? firstName : username,
+      'lastName': prefs.getString('lastName') ?? '',
+    }, SetOptions(merge: true));
   }
 
   // ---------------------------------------------------------------------
@@ -306,6 +321,7 @@ class UserService {
     final prefs = await SharedPreferences.getInstance();
     final uid = currentUser?.uid;
     return {
+      'uid': uid ?? '',
       'id': prefs.getInt('id') ?? 0,
       'age': uid == null ? 0 : prefs.getInt(_profileKey(uid, 'age')) ?? 0,
       'contactNo':

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../models/cart.dart';
 import '../models/product.dart';
 import '../services/cart_service.dart';
+import '../services/user_service.dart';
 import '../widgets/custom_text.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -26,26 +28,74 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _quantity = 1;
   bool _adding = false;
 
+  // Firebase accounts save the cart in Firestore, DummyJSON accounts keep
+  // using the /carts/add test endpoint
+  bool _isFirebase = false;
+  String? _uid;
+
   Product get product => widget.product;
 
-  // Add to cart: sends the product and chosen quantity to the /carts/add
-  // endpoint, then tells the user whether it worked.
+  @override
+  void initState() {
+    super.initState();
+    _loadAccount();
+  }
+
+  Future<void> _loadAccount() async {
+    final type = await userService.value.getLoginType();
+    if (!mounted) return;
+    setState(() {
+      _isFirebase = type == LoginType.firebase;
+      _uid = userService.value.currentUser?.uid;
+    });
+  }
+
+  // Add to cart: Firebase accounts save the product and chosen quantity in
+  // their Firestore cart (quantity goes up if it is already there).
+  // DummyJSON accounts send it to the /carts/add endpoint.
   Future<void> _addToCart() async {
     setState(() => _adding = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await _cartService.addToCart(
-        userId: widget.userId,
-        products: [
-          {'id': product.id, 'quantity': _quantity},
-        ],
-      );
+      if (_isFirebase) {
+        final uid = _uid;
+        if (uid == null) {
+          throw AppException('Please log in again to use your cart.');
+        }
+        await _cartService.addProductToFirebaseCart(
+          uid,
+          CartProduct(
+            id: product.id,
+            title: product.title,
+            price: product.price,
+            quantity: _quantity,
+            total: product.price * _quantity,
+            discountPercentage: product.discountPercentage,
+            discountedTotal: product.price *
+                (1 - product.discountPercentage / 100) *
+                _quantity,
+            thumbnail: product.thumbnail,
+          ),
+          quantity: _quantity,
+        );
+      } else {
+        await _cartService.addToCart(
+          userId: widget.userId,
+          products: [
+            {'id': product.id, 'quantity': _quantity},
+          ],
+        );
+      }
       messenger.showSnackBar(
         SnackBar(content: Text('Added $_quantity x ${product.title} to cart')),
       );
-    } catch (_) {
+    } catch (e) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Could not add to cart. Try again.')),
+        SnackBar(
+          content: Text(
+            _isFirebase ? friendlyError(e) : 'Could not add to cart. Try again.',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _adding = false);

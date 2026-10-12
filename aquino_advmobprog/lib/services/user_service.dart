@@ -132,26 +132,40 @@ class UserService {
   }
 
   Future<void> deleteAccount({
-    required String email,
-    required String password,
-  }) async {
-    // re-login is required before deleting
-    final user = currentUser!;
-    final uid = user.uid;
-    final credential = fb.EmailAuthProvider.credential(
-      email: email,
-      password: password,
-    );
-    await user.reauthenticateWithCredential(credential);
-    await user.delete();
+  required String email,
+  required String password,
+}) async {
+  // re-login is required before deleting
+  final user = currentUser!;
+  final uid = user.uid;
+  final credential = fb.EmailAuthProvider.credential(
+    email: email,
+    password: password,
+  );
+  await user.reauthenticateWithCredential(credential);
 
-    // remove the saved details of the deleted account too
-    final prefs = await SharedPreferences.getInstance();
-    for (final field in _profileFields) {
-      await prefs.remove(_profileKey(uid, field));
+  // delete the Firestore data while still signed in
+  final userRef = FirebaseFirestore.instance.collection('Users').doc(uid);
+  for (final sub in ['cart', 'orders']) {
+    final snap = await userRef.collection(sub).get();
+    final batch = FirebaseFirestore.instance.batch();
+    for (final d in snap.docs) {
+      batch.delete(d.reference);
     }
-    await logout();
+    await batch.commit();
   }
+  await userRef.delete();
+
+  // delete the login itself, so the email and password stop working
+  await user.delete();
+
+  // remove the saved details of the deleted account
+  final prefs = await SharedPreferences.getInstance();
+  for (final field in _profileFields) {
+    await prefs.remove(_profileKey(uid, field));
+  }
+  await logout();
+}
 
   // needs the current password first, then sets the new one
   Future<void> resetPasswordFromCurrentPassword({
